@@ -32,6 +32,9 @@ class FamilyTreePlugin
         add_action('wp_ajax_create_family_user', array($this, 'ajax_create_family_user'));
         add_action('wp_ajax_update_family_member', array($this, 'ajax_update_family_member'));
         add_action('wp_ajax_delete_family_member', array($this, 'ajax_delete_family_member'));
+        // Add these to the constructor in family-tree.php
+        add_action('wp_ajax_update_user_role', array($this, 'ajax_update_user_role'));
+        add_action('wp_ajax_delete_family_user', array($this, 'ajax_delete_family_user'));
 
         // Handle custom routes
         add_action('template_redirect', array($this, 'handle_routes'));
@@ -156,6 +159,8 @@ class FamilyTreePlugin
         ));
     }
 
+    // Add this to your FamilyTreePlugin class in family-tree.php
+
     public function ajax_add_family_member()
     {
         check_ajax_referer('family_tree_nonce', 'nonce');
@@ -164,16 +169,24 @@ class FamilyTreePlugin
             wp_send_json_error('Insufficient permissions');
         }
 
+        // Handle file upload
+        $photo_url = '';
+        if (!empty($_FILES['photo']['name'])) {
+            $upload = wp_handle_upload($_FILES['photo'], array('test_form' => false));
+            if (isset($upload['url'])) {
+                $photo_url = $upload['url'];
+            }
+        }
+
         $data = array(
             'first_name' => sanitize_text_field($_POST['first_name']),
             'last_name' => sanitize_text_field($_POST['last_name']),
             'birth_date' => sanitize_text_field($_POST['birth_date']),
             'death_date' => sanitize_text_field($_POST['death_date']),
             'gender' => sanitize_text_field($_POST['gender']),
-            'photo_url' => esc_url_raw($_POST['photo_url']),
+            'photo_url' => $photo_url,
             'biography' => sanitize_textarea_field($_POST['biography']),
-            'parent1_id' => intval($_POST['parent1_id']),
-            'parent2_id' => intval($_POST['parent2_id'])
+            'parent1_id' => !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null
         );
 
         $result = FamilyTreeDatabase::add_member($data);
@@ -246,7 +259,85 @@ class FamilyTreePlugin
             wp_send_json_error($result['message']);
         }
     }
+    // Add these methods to your FamilyTreePlugin class in family-tree.php
 
+    public function ajax_update_user_role()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('manage_family')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $user_id = intval($_POST['user_id']);
+        $new_role = sanitize_text_field($_POST['new_role']);
+
+        // Validate role
+        $valid_roles = ['family_admin', 'family_editor', 'family_viewer'];
+        if (!in_array($new_role, $valid_roles)) {
+            wp_send_json_error('Invalid role specified');
+        }
+
+        // Get the user
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            wp_send_json_error('User not found');
+        }
+
+        // Update user role
+        $user->set_role($new_role);
+
+        wp_send_json_success('User role updated successfully');
+    }
+
+    public function ajax_delete_family_user()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('manage_family')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $user_id = intval($_POST['user_id']);
+        $current_user_id = get_current_user_id();
+
+        // Prevent users from deleting themselves
+        if ($user_id == $current_user_id) {
+            wp_send_json_error('You cannot delete your own account');
+        }
+
+        // Check if user exists and has family role
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            wp_send_json_error('User not found');
+        }
+
+        $user_roles = $user->roles;
+        $is_family_user = false;
+        foreach ($user_roles as $role) {
+            if (strpos($role, 'family_') === 0) {
+                $is_family_user = true;
+                break;
+            }
+        }
+
+        if (!$is_family_user) {
+            wp_send_json_error('User is not a family user');
+        }
+
+        // Delete the user
+        if (!function_exists('wp_delete_user')) {
+            require_once(ABSPATH . 'wp-admin/includes/user.php');
+        }
+
+        $result = wp_delete_user($user_id);
+
+        if ($result) {
+            wp_send_json_success('User deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete user');
+        }
+    }
     // Add these to your FamilyTreePlugin class in family-tree.php
 
     public function ajax_update_family_member()

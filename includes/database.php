@@ -31,6 +31,7 @@ class FamilyTreeDatabase
         dbDelta($sql);
     }
 
+    // In database.php, update the add_member method if needed
     public static function add_member($data)
     {
         global $wpdb;
@@ -40,7 +41,7 @@ class FamilyTreeDatabase
             array_merge($data, array(
                 'created_by' => get_current_user_id()
             )),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d')
         );
 
         return $result ? $wpdb->insert_id : false;
@@ -70,18 +71,19 @@ class FamilyTreeDatabase
         global $wpdb;
 
         $members = $wpdb->get_results("
-        SELECT 
-            id,
-            first_name as firstName,
-            last_name as lastName, 
-            birth_date as birthDate,
-            death_date as deathDate,
-            gender,
-            photo_url as photo,
-            parent1_id as parent1,
-            parent2_id as parent2
-        FROM {$wpdb->prefix}family_members 
-        ORDER BY last_name, first_name
+    SELECT 
+        id,
+        first_name as firstName,
+        last_name as lastName, 
+        birth_date as birthDate,
+        death_date as deathDate,
+        gender,
+        photo_url as photo,
+        biography,
+        parent1_id as parent1,
+        parent2_id as parent2
+    FROM {$wpdb->prefix}family_members 
+    ORDER BY last_name, first_name
     ");
 
         // Debug: Log what we're returning
