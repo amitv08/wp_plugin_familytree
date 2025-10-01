@@ -5,30 +5,30 @@ class FamilyTree {
         this.margin = { top: 50, right: 120, bottom: 50, left: 120 };
         this.width = 1200 - this.margin.left - this.margin.right;
         this.height = 800 - this.margin.top - this.margin.bottom;
-        
+
         this.init();
     }
-    
+
     init() {
         this.container.innerHTML = '';
-        
+
         const svg = d3.select(this.container)
             .append('svg')
             .attr('width', this.width + this.margin.left + this.margin.right)
             .attr('height', this.height + this.margin.top + this.margin.bottom)
             .append('g')
             .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
-            
+
         this.renderTree(svg);
     }
-    
+
     renderTree(svg) {
         // Build hierarchy
         const root = this.buildHierarchy();
         const treeLayout = d3.tree().size([this.height, this.width]);
-        
+
         const treeData = treeLayout(root);
-        
+
         // Draw links
         svg.selectAll('.link')
             .data(treeData.links())
@@ -42,7 +42,7 @@ class FamilyTree {
             .style('fill', 'none')
             .style('stroke', '#ccc')
             .style('stroke-width', 2);
-        
+
         // Draw nodes
         const nodes = svg.selectAll('.node')
             .data(treeData.descendants())
@@ -50,7 +50,7 @@ class FamilyTree {
             .append('g')
             .attr('class', 'node')
             .attr('transform', d => `translate(${d.y},${d.x})`);
-        
+
         // Add circles
         nodes.append('circle')
             .attr('r', 25)
@@ -58,7 +58,7 @@ class FamilyTree {
             .style('stroke', '#fff')
             .style('stroke-width', 3)
             .on('click', (event, d) => this.showMemberDetails(d.data));
-        
+
         // Add labels
         nodes.append('text')
             .attr('dy', '.35em')
@@ -70,10 +70,10 @@ class FamilyTree {
             .style('cursor', 'pointer')
             .on('click', (event, d) => this.showMemberDetails(d.data));
     }
-    
+
     buildHierarchy() {
         const nodeMap = new Map();
-        
+
         // Create all nodes
         this.data.forEach(member => {
             nodeMap.set(member.id, {
@@ -81,7 +81,7 @@ class FamilyTree {
                 children: []
             });
         });
-        
+
         // Build parent-child relationships
         const rootNodes = [];
         nodeMap.forEach((node, id) => {
@@ -96,13 +96,13 @@ class FamilyTree {
                 rootNodes.push(node);
             }
         });
-        
+
         // Use first root node or create a dummy root
         let rootNode = rootNodes.length > 0 ? rootNodes[0] : this.data[0];
-        
+
         return d3.hierarchy(rootNode);
     }
-    
+
     getNodeColor(member) {
         if (member.gender === 'male') {
             return member.deathDate ? '#2C5282' : '#4A90E2';
@@ -112,7 +112,7 @@ class FamilyTree {
             return member.deathDate ? '#22543D' : '#38A169';
         }
     }
-    
+
     showMemberDetails(member) {
         const detailsHtml = `
             <div class="member-details-modal">
@@ -126,7 +126,7 @@ class FamilyTree {
                 </div>
             </div>
         `;
-        
+
         document.body.insertAdjacentHTML('beforeend', detailsHtml);
     }
 }

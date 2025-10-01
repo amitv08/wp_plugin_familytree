@@ -1,30 +1,30 @@
 // Family Tree Main JavaScript
-jQuery(document).ready(function($) {
+jQuery(document).ready(function ($) {
     console.log('Family Tree plugin loaded successfully');
-    
+
     // Global modal functions
-    window.showAddMemberForm = function() {
+    window.showAddMemberForm = function () {
         $('#add-member-modal').show();
     };
-    
-    window.closeModal = function() {
+
+    window.closeModal = function () {
         $('.modal').hide();
     };
-    
+
     // Close modal when clicking outside
-    $(document).on('click', function(e) {
+    $(document).on('click', function (e) {
         if ($(e.target).hasClass('modal')) {
             closeModal();
         }
     });
-    
+
     // Handle escape key to close modals
-    $(document).on('keyup', function(e) {
+    $(document).on('keyup', function (e) {
         if (e.key === 'Escape') {
             closeModal();
         }
     });
-    
+
     // Initialize any dynamic functionality
     initializeFamilyTree();
 });
@@ -51,9 +51,9 @@ function showNotification(message, type = 'success') {
         z-index: 10000;
         max-width: 300px;
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.remove();
     }, 5000);
@@ -62,31 +62,31 @@ function showNotification(message, type = 'success') {
 // Form validation
 function validateMemberForm(formData) {
     const errors = [];
-    
+
     if (!formData.first_name || formData.first_name.trim().length < 2) {
         errors.push('First name is required and must be at least 2 characters long.');
     }
-    
+
     if (!formData.last_name || formData.last_name.trim().length < 2) {
         errors.push('Last name is required and must be at least 2 characters long.');
     }
-    
+
     if (formData.birth_date && formData.death_date) {
         const birthDate = new Date(formData.birth_date);
         const deathDate = new Date(formData.death_date);
-        
+
         if (deathDate < birthDate) {
             errors.push('Death date cannot be before birth date.');
         }
     }
-    
+
     return errors;
 }
 
 // Date formatting utility
 function formatDateForDisplay(dateString) {
     if (!dateString) return 'Unknown';
-    
+
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -105,10 +105,10 @@ function buildFamilyHierarchy(members) {
             children: []
         });
     });
-    
+
     // Build hierarchy
     const rootNodes = [];
-    
+
     memberMap.forEach(member => {
         if (member.parent1_id || member.parent2_id) {
             // Add as child to parents
@@ -123,6 +123,6 @@ function buildFamilyHierarchy(members) {
             rootNodes.push(member);
         }
     });
-    
+
     return rootNodes;
 }

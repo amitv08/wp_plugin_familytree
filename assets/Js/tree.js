@@ -9,16 +9,16 @@ class FamilyTreeVisualization {
         this.zoom = null;
         this.svg = null;
         this.treeLayout = null;
-        
+
         this.init();
     }
-    
+
     init() {
         this.setupSVG();
         this.setupZoom();
         this.render();
     }
-    
+
     setupSVG() {
         this.svg = d3.select(`#${this.containerId}`)
             .append('svg')
@@ -27,39 +27,39 @@ class FamilyTreeVisualization {
             .append('g')
             .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
     }
-    
+
     setupZoom() {
         this.zoom = d3.zoom()
             .scaleExtent([0.1, 2])
             .on('zoom', (event) => {
                 this.svg.attr('transform', event.transform);
             });
-            
+
         d3.select(`#${this.containerId} svg`).call(this.zoom);
     }
-    
+
     render() {
         if (!this.data || this.data.length === 0) {
             this.showNoDataMessage();
             return;
         }
-        
+
         // Build hierarchy
         const root = this.buildHierarchy();
         this.treeLayout = d3.tree().size([this.height, this.width]);
         this.treeLayout(root);
-        
+
         this.drawLinks(root);
         this.drawNodes(root);
     }
-    
+
     buildHierarchy() {
         // Create a map of nodes
         const nodeMap = new Map();
         this.data.forEach(d => {
             nodeMap.set(d.id, { ...d, children: [] });
         });
-        
+
         // Build children arrays
         const rootNodes = [];
         nodeMap.forEach(node => {
@@ -74,20 +74,20 @@ class FamilyTreeVisualization {
                 rootNodes.push(node);
             }
         });
-        
+
         // If no clear root, use the first node
         if (rootNodes.length === 0 && this.data.length > 0) {
             rootNodes.push(this.data[0]);
         }
-        
+
         return d3.hierarchy(rootNodes[0]);
     }
-    
+
     drawLinks(root) {
         const linkGenerator = d3.linkHorizontal()
             .x(d => d.y)
             .y(d => d.x);
-            
+
         this.svg.selectAll('.link')
             .data(root.links())
             .enter()
@@ -98,7 +98,7 @@ class FamilyTreeVisualization {
             .style('stroke', '#ccc')
             .style('stroke-width', 2);
     }
-    
+
     drawNodes(root) {
         const nodes = this.svg.selectAll('.node')
             .data(root.descendants())
@@ -106,14 +106,14 @@ class FamilyTreeVisualization {
             .append('g')
             .attr('class', 'node')
             .attr('transform', d => `translate(${d.y},${d.x})`);
-            
+
         // Add circles
         nodes.append('circle')
             .attr('r', 10)
             .style('fill', d => this.getNodeColor(d.data))
             .style('stroke', '#fff')
             .style('stroke-width', 2);
-            
+
         // Add labels
         nodes.append('text')
             .attr('dy', '.35em')
@@ -123,7 +123,7 @@ class FamilyTreeVisualization {
             .style('font-size', '12px')
             .style('font-family', 'Arial, sans-serif');
     }
-    
+
     getNodeColor(member) {
         if (member.gender === 'male') {
             return member.deathDate ? '#2C5282' : '#4A90E2';
@@ -133,7 +133,7 @@ class FamilyTreeVisualization {
             return member.deathDate ? '#22543D' : '#38A169';
         }
     }
-    
+
     showNoDataMessage() {
         d3.select(`#${this.containerId}`).html(`
             <div class="no-data-message">
@@ -143,14 +143,14 @@ class FamilyTreeVisualization {
             </div>
         `);
     }
-    
+
     // Public methods
     updateData(newData) {
         this.data = newData;
         this.svg.selectAll('*').remove();
         this.render();
     }
-    
+
     resetView() {
         d3.select(`#${this.containerId} svg`).call(
             this.zoom.transform,

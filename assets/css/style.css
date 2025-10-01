@@ -111,13 +111,13 @@
     border-radius: 8px;
     padding: 20px;
     background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .member-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .member-photo,
@@ -225,7 +225,7 @@
 .form-group textarea:focus {
     outline: none;
     border-color: #007cba;
-    box-shadow: 0 0 0 2px rgba(0,124,186,0.2);
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.2);
 }
 
 .form-actions {
@@ -357,8 +357,13 @@
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Simple Tree Styles */
@@ -370,10 +375,21 @@
     margin: 10px 0;
 }
 
-.level-0 { margin-left: 0; }
-.level-1 { margin-left: 40px; }
-.level-2 { margin-left: 80px; }
-.level-3 { margin-left: 120px; }
+.level-0 {
+    margin-left: 0;
+}
+
+.level-1 {
+    margin-left: 40px;
+}
+
+.level-2 {
+    margin-left: 80px;
+}
+
+.level-3 {
+    margin-left: 120px;
+}
 
 .member-node {
     margin: 10px 0;
@@ -383,11 +399,22 @@
     background: white;
 }
 
-.member-node.male { border-left: 4px solid #4A90E2; }
-.member-node.female { border-left: 4px solid #E53E3E; }
-.member-node.other { border-left: 4px solid #38A169; }
+.member-node.male {
+    border-left: 4px solid #4A90E2;
+}
 
-.member-node.deceased { opacity: 0.7; background-color: #f8f9fa; }
+.member-node.female {
+    border-left: 4px solid #E53E3E;
+}
+
+.member-node.other {
+    border-left: 4px solid #38A169;
+}
+
+.member-node.deceased {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
 
 .node-content {
     display: flex;
@@ -439,11 +466,40 @@
     gap: 8px;
 }
 
-.color-male { width: 16px; height: 16px; background-color: #4A90E2; border-radius: 50%; }
-.color-female { width: 16px; height: 16px; background-color: #E53E3E; border-radius: 50%; }
-.color-male-deceased { width: 16px; height: 16px; background-color: #2C5282; border-radius: 50%; }
-.color-female-deceased { width: 16px; height: 16px; background-color: #822727; border-radius: 50%; }
-.color-other { width: 16px; height: 16px; background-color: #38A169; border-radius: 50%; }
+.color-male {
+    width: 16px;
+    height: 16px;
+    background-color: #4A90E2;
+    border-radius: 50%;
+}
+
+.color-female {
+    width: 16px;
+    height: 16px;
+    background-color: #E53E3E;
+    border-radius: 50%;
+}
+
+.color-male-deceased {
+    width: 16px;
+    height: 16px;
+    background-color: #2C5282;
+    border-radius: 50%;
+}
+
+.color-female-deceased {
+    width: 16px;
+    height: 16px;
+    background-color: #822727;
+    border-radius: 50%;
+}
+
+.color-other {
+    width: 16px;
+    height: 16px;
+    background-color: #38A169;
+    border-radius: 50%;
+}
 
 /* Messages */
 .message {
@@ -485,7 +541,7 @@
     background: white;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .family-login h3 {
@@ -496,6 +552,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+
     .dashboard-header,
     .admin-header,
     .tree-header,
@@ -504,36 +561,36 @@
         gap: 15px;
         text-align: center;
     }
-    
+
     .form-row {
         flex-direction: column;
         gap: 0;
     }
-    
+
     .admin-tabs {
         flex-direction: column;
     }
-    
+
     .tab-button {
         text-align: left;
         border-bottom: 1px solid #ddd;
         border-left: 3px solid transparent;
     }
-    
+
     .tab-button.active {
         border-left-color: #007cba;
         border-bottom-color: #ddd;
     }
-    
+
     .members-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .node-content {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .legend-items {
         flex-direction: column;
         gap: 10px;

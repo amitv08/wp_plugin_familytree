@@ -1,20 +1,23 @@
 <?php
 
-class FamilyTreeShortcodes {
-    
-    public function __construct() {
+class FamilyTreeShortcodes
+{
+
+    public function __construct()
+    {
         add_shortcode('family_dashboard', array($this, 'family_dashboard'));
         add_shortcode('family_login', array($this, 'family_login'));
         add_shortcode('family_admin', array($this, 'family_admin'));
         add_shortcode('add_family_member', array($this, 'add_family_member'));
         add_shortcode('family_tree_view', array($this, 'family_tree_view'));
     }
-    
-    public function family_dashboard($atts) {
+
+    public function family_dashboard($atts)
+    {
         if (!is_user_logged_in()) {
             return $this->family_login();
         }
-        
+
         ob_start();
         ?>
         <div class="family-dashboard">
@@ -44,44 +47,49 @@ class FamilyTreeShortcodes {
                                 $parents = array();
                                 if ($member->parent1_id) {
                                     $parent1 = FamilyTreeDatabase::get_member($member->parent1_id);
-                                    if ($parent1) $parents[] = $parent1->first_name . ' ' . $parent1->last_name;
+                                    if ($parent1)
+                                        $parents[] = $parent1->first_name . ' ' . $parent1->last_name;
                                 }
                                 if ($member->parent2_id) {
                                     $parent2 = FamilyTreeDatabase::get_member($member->parent2_id);
-                                    if ($parent2) $parents[] = $parent2->first_name . ' ' . $parent2->last_name;
+                                    if ($parent2)
+                                        $parents[] = $parent2->first_name . ' ' . $parent2->last_name;
                                 }
-                        ?>
-                        <div class="member-card">
-                            <div class="member-photo">
-                                <?php if ($member->photo_url): ?>
-                                    <img src="<?php echo esc_url($member->photo_url); ?>" alt="<?php echo esc_attr($member->first_name); ?>">
-                                <?php else: ?>
-                                    <div class="photo-placeholder">
-                                        <?php echo strtoupper(substr($member->first_name, 0, 1)); ?>
+                                ?>
+                                <div class="member-card">
+                                    <div class="member-photo">
+                                        <?php if ($member->photo_url): ?>
+                                            <img src="<?php echo esc_url($member->photo_url); ?>"
+                                                alt="<?php echo esc_attr($member->first_name); ?>">
+                                        <?php else: ?>
+                                            <div class="photo-placeholder">
+                                                <?php echo strtoupper(substr($member->first_name, 0, 1)); ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
+                                    <div class="member-details">
+                                        <h3><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></h3>
+                                        <p><strong>Born:</strong>
+                                            <?php echo $member->birth_date ? date('M j, Y', strtotime($member->birth_date)) : 'Unknown'; ?>
+                                        </p>
+                                        <?php if ($member->death_date): ?>
+                                            <p><strong>Died:</strong> <?php echo date('M j, Y', strtotime($member->death_date)); ?></p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($parents)): ?>
+                                            <p><strong>Parents:</strong> <?php echo implode(' & ', $parents); ?></p>
+                                        <?php endif; ?>
+                                        <?php if ($member->biography): ?>
+                                            <p class="biography"><?php echo wp_trim_words(esc_html($member->biography), 20); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; else: ?>
+                            <div class="no-members">
+                                <p>No family members added yet.</p>
+                                <?php if (current_user_can('edit_family_members')): ?>
+                                    <a href="/add-member" class="btn btn-primary">Add First Member</a>
                                 <?php endif; ?>
                             </div>
-                            <div class="member-details">
-                                <h3><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></h3>
-                                <p><strong>Born:</strong> <?php echo $member->birth_date ? date('M j, Y', strtotime($member->birth_date)) : 'Unknown'; ?></p>
-                                <?php if ($member->death_date): ?>
-                                    <p><strong>Died:</strong> <?php echo date('M j, Y', strtotime($member->death_date)); ?></p>
-                                <?php endif; ?>
-                                <?php if (!empty($parents)): ?>
-                                    <p><strong>Parents:</strong> <?php echo implode(' & ', $parents); ?></p>
-                                <?php endif; ?>
-                                <?php if ($member->biography): ?>
-                                    <p class="biography"><?php echo wp_trim_words(esc_html($member->biography), 20); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endforeach; else: ?>
-                        <div class="no-members">
-                            <p>No family members added yet.</p>
-                            <?php if (current_user_can('edit_family_members')): ?>
-                                <a href="/add-member" class="btn btn-primary">Add First Member</a>
-                            <?php endif; ?>
-                        </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -90,12 +98,13 @@ class FamilyTreeShortcodes {
         <?php
         return ob_get_clean();
     }
-    
-    public function family_login($atts) {
+
+    public function family_login($atts)
+    {
         if (is_user_logged_in()) {
             return $this->family_dashboard();
         }
-        
+
         ob_start();
         ?>
         <div class="family-login-page">
@@ -108,7 +117,7 @@ class FamilyTreeShortcodes {
                     'label_remember' => 'Remember Me'
                 ));
                 ?>
-                
+
                 <?php if (get_option('users_can_register')): ?>
                     <div class="register-link">
                         <p>Don't have an account? <a href="<?php echo wp_registration_url(); ?>">Register here</a></p>
@@ -119,12 +128,13 @@ class FamilyTreeShortcodes {
         <?php
         return ob_get_clean();
     }
-    
-    public function family_admin($atts) {
+
+    public function family_admin($atts)
+    {
         if (!current_user_can('manage_family')) {
             return '<div class="family-message error"><p>You do not have permission to access the admin panel.</p></div>';
         }
-        
+
         ob_start();
         ?>
         <div class="family-admin-panel">
@@ -156,7 +166,7 @@ class FamilyTreeShortcodes {
                                 <input type="email" id="email" name="email" required>
                             </div>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="first_name">First Name</label>
@@ -167,7 +177,7 @@ class FamilyTreeShortcodes {
                                 <input type="text" id="last_name" name="last_name">
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="role">User Role *</label>
                             <select id="role" name="role" required>
@@ -177,7 +187,7 @@ class FamilyTreeShortcodes {
                                 <option value="family_viewer">Family Viewer</option>
                             </select>
                         </div>
-                        
+
                         <button type="submit" class="btn btn-primary">Create User</button>
                     </form>
                 </div>
@@ -195,32 +205,32 @@ class FamilyTreeShortcodes {
                                 )
                             )
                         ));
-                        
+
                         if ($users):
-                        ?>
-                        <table class="users-table">
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($users as $user): 
-                                    $roles = $user->roles;
-                                    $primary_role = !empty($roles) ? $roles[0] : 'No role';
-                                ?>
-                                <tr>
-                                    <td><?php echo esc_html($user->user_login); ?></td>
-                                    <td><?php echo esc_html($user->display_name); ?></td>
-                                    <td><?php echo esc_html($user->user_email); ?></td>
-                                    <td><span class="role-badge"><?php echo esc_html($primary_role); ?></span></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                            ?>
+                            <table class="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($users as $user):
+                                        $roles = $user->roles;
+                                        $primary_role = !empty($roles) ? $roles[0] : 'No role';
+                                        ?>
+                                        <tr>
+                                            <td><?php echo esc_html($user->user_login); ?></td>
+                                            <td><?php echo esc_html($user->display_name); ?></td>
+                                            <td><?php echo esc_html($user->user_email); ?></td>
+                                            <td><span class="role-badge"><?php echo esc_html($primary_role); ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         <?php else: ?>
                             <p>No family users found.</p>
                         <?php endif; ?>
@@ -257,7 +267,7 @@ class FamilyTreeShortcodes {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="admin-actions">
                         <a href="/add-member" class="btn btn-primary">Add New Member</a>
                         <a href="/family-tree" class="btn btn-secondary">View Tree</a>
@@ -269,7 +279,8 @@ class FamilyTreeShortcodes {
                 <div class="tab-section">
                     <h3>Family Tree Settings</h3>
                     <div class="settings-info">
-                        <p><strong>User Registration:</strong> <?php echo get_option('users_can_register') ? 'Enabled' : 'Disabled'; ?></p>
+                        <p><strong>User Registration:</strong>
+                            <?php echo get_option('users_can_register') ? 'Enabled' : 'Disabled'; ?></p>
                         <p><em>To enable user registration, go to Settings → General in WordPress admin.</em></p>
                     </div>
                 </div>
@@ -279,55 +290,56 @@ class FamilyTreeShortcodes {
         <div id="admin-messages"></div>
 
         <script>
-        jQuery(document).ready(function($) {
-            // Tab functionality
-            $('.tab-button').on('click', function() {
-                var tabId = $(this).data('tab');
-                
-                $('.tab-button').removeClass('active');
-                $(this).addClass('active');
-                
-                $('.tab-content').removeClass('active');
-                $('#' + tabId + '-tab').addClass('active');
-            });
-            
-            // Create user form
-            $('#create-user-form').on('submit', function(e) {
-                e.preventDefault();
-                
-                var formData = $(this).serializeArray();
-                var data = {};
-                
-                formData.forEach(function(field) {
-                    data[field.name] = field.value;
+            jQuery(document).ready(function ($) {
+                // Tab functionality
+                $('.tab-button').on('click', function () {
+                    var tabId = $(this).data('tab');
+
+                    $('.tab-button').removeClass('active');
+                    $(this).addClass('active');
+
+                    $('.tab-content').removeClass('active');
+                    $('#' + tabId + '-tab').addClass('active');
                 });
-                
-                data.action = 'create_family_user';
-                data.nonce = family_tree.nonce;
-                
-                $.post(family_tree.ajax_url, data, function(response) {
-                    if (response.success) {
-                        $('#admin-messages').html('<div class="message success">' + response.data + '</div>');
-                        $('#create-user-form')[0].reset();
-                        setTimeout(function() {
-                            location.reload();
-                        }, 2000);
-                    } else {
-                        $('#admin-messages').html('<div class="message error">' + response.data + '</div>');
-                    }
+
+                // Create user form
+                $('#create-user-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var formData = $(this).serializeArray();
+                    var data = {};
+
+                    formData.forEach(function (field) {
+                        data[field.name] = field.value;
+                    });
+
+                    data.action = 'create_family_user';
+                    data.nonce = family_tree.nonce;
+
+                    $.post(family_tree.ajax_url, data, function (response) {
+                        if (response.success) {
+                            $('#admin-messages').html('<div class="message success">' + response.data + '</div>');
+                            $('#create-user-form')[0].reset();
+                            setTimeout(function () {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            $('#admin-messages').html('<div class="message error">' + response.data + '</div>');
+                        }
+                    });
                 });
             });
-        });
         </script>
         <?php
         return ob_get_clean();
     }
-    
-    public function add_family_member($atts) {
+
+    public function add_family_member($atts)
+    {
         if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
             return '<div class="family-message error"><p>You do not have permission to add family members.</p></div>';
         }
-        
+
         ob_start();
         ?>
         <div class="add-member-page">
@@ -349,7 +361,7 @@ class FamilyTreeShortcodes {
                             <input type="text" id="last_name" name="last_name" required>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="gender">Gender</label>
                         <select id="gender" name="gender">
@@ -411,7 +423,8 @@ class FamilyTreeShortcodes {
                     </div>
                     <div class="form-group">
                         <label for="biography">Biography</label>
-                        <textarea id="biography" name="biography" rows="4" placeholder="Tell us about this family member..."></textarea>
+                        <textarea id="biography" name="biography" rows="4"
+                            placeholder="Tell us about this family member..."></textarea>
                     </div>
                 </div>
 
@@ -425,43 +438,44 @@ class FamilyTreeShortcodes {
         </div>
 
         <script>
-        jQuery(document).ready(function($) {
-            $('#add-member-form').on('submit', function(e) {
-                e.preventDefault();
-                
-                var formData = $(this).serializeArray();
-                var data = {};
-                
-                formData.forEach(function(field) {
-                    data[field.name] = field.value;
-                });
-                
-                data.action = 'add_family_member';
-                data.nonce = family_tree.nonce;
-                
-                $.post(family_tree.ajax_url, data, function(response) {
-                    if (response.success) {
-                        $('#form-message').html('<div class="message success">' + response.data + '</div>');
-                        $('#add-member-form')[0].reset();
-                        setTimeout(function() {
-                            window.location.href = '/family-dashboard';
-                        }, 2000);
-                    } else {
-                        $('#form-message').html('<div class="message error">' + response.data + '</div>');
-                    }
+            jQuery(document).ready(function ($) {
+                $('#add-member-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var formData = $(this).serializeArray();
+                    var data = {};
+
+                    formData.forEach(function (field) {
+                        data[field.name] = field.value;
+                    });
+
+                    data.action = 'add_family_member';
+                    data.nonce = family_tree.nonce;
+
+                    $.post(family_tree.ajax_url, data, function (response) {
+                        if (response.success) {
+                            $('#form-message').html('<div class="message success">' + response.data + '</div>');
+                            $('#add-member-form')[0].reset();
+                            setTimeout(function () {
+                                window.location.href = '/family-dashboard';
+                            }, 2000);
+                        } else {
+                            $('#form-message').html('<div class="message error">' + response.data + '</div>');
+                        }
+                    });
                 });
             });
-        });
         </script>
         <?php
         return ob_get_clean();
     }
-    
-    public function family_tree_view($atts) {
+
+    public function family_tree_view($atts)
+    {
         if (!is_user_logged_in()) {
             return $this->family_login();
         }
-        
+
         ob_start();
         ?>
         <div class="family-tree-view">
@@ -488,36 +502,36 @@ class FamilyTreeShortcodes {
         </div>
 
         <script>
-        jQuery(document).ready(function($) {
-            // Simple tree display
-            function loadTreeData() {
-                $.ajax({
-                    url: family_tree.ajax_url,
-                    type: 'POST',
-                    data: {
-                        action: 'get_tree_data',
-                        nonce: family_tree.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            displaySimpleTree(response.data);
+            jQuery(document).ready(function ($) {
+                // Simple tree display
+                function loadTreeData() {
+                    $.ajax({
+                        url: family_tree.ajax_url,
+                        type: 'POST',
+                        data: {
+                            action: 'get_tree_data',
+                            nonce: family_tree.nonce
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                displaySimpleTree(response.data);
+                            }
                         }
-                    }
-                });
-            }
-            
-            function displaySimpleTree(members) {
-                var html = '<div class="simple-tree-grid">';
-                
-                if (members && members.length > 0) {
-                    members.forEach(function(member) {
-                        html += `
+                    });
+                }
+
+                function displaySimpleTree(members) {
+                    var html = '<div class="simple-tree-grid">';
+
+                    if (members && members.length > 0) {
+                        members.forEach(function (member) {
+                            html += `
                             <div class="tree-member-card">
                                 <div class="member-photo">
-                                    ${member.photo ? 
-                                        '<img src="' + member.photo + '" alt="' + member.firstName + '">' : 
-                                        '<div class="photo-placeholder">' + member.firstName.charAt(0) + '</div>'
-                                    }
+                                    ${member.photo ?
+                            '<img src="' + member.photo + '" alt="' + member.firstName + '">' :
+                            '<div class="photo-placeholder">' + member.firstName.charAt(0) + '</div>'
+                        }
                                 </div>
                                 <div class="member-info">
                                     <h4>${member.firstName} ${member.lastName}</h4>
@@ -527,17 +541,17 @@ class FamilyTreeShortcodes {
                                 </div>
                             </div>
                         `;
-                    });
-                } else {
-                    html += '<div class="no-data"><p>No family members found.</p></div>';
+                        });
+                    } else {
+                        html += '<div class="no-data"><p>No family members found.</p></div>';
+                    }
+
+                    html += '</div>';
+                    $('#tree-visualization').html(html);
                 }
-                
-                html += '</div>';
-                $('#tree-visualization').html(html);
-            }
-            
-            loadTreeData();
-        });
+
+                loadTreeData();
+            });
         </script>
         <?php
         return ob_get_clean();
