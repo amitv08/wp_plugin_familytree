@@ -15,7 +15,7 @@ class FamilyTreeShortcodes
     public function family_dashboard($atts)
     {
         if (!is_user_logged_in()) {
-            return $this->family_login();
+            return $this->family_login($atts);
         }
 
         ob_start();
@@ -102,7 +102,7 @@ class FamilyTreeShortcodes
     public function family_login($atts)
     {
         if (is_user_logged_in()) {
-            return $this->family_dashboard();
+            return $this->family_dashboard($atts);
         }
 
         ob_start();
@@ -473,7 +473,7 @@ class FamilyTreeShortcodes
     public function family_tree_view($atts)
     {
         if (!is_user_logged_in()) {
-            return $this->family_login();
+            return $this->family_login($atts);
         }
 
         ob_start();
