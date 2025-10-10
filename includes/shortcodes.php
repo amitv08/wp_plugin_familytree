@@ -2,7 +2,6 @@
 
 class FamilyTreeShortcodes
 {
-
     public function __construct()
     {
         add_shortcode('family_dashboard', array($this, 'family_dashboard'));
@@ -10,6 +9,44 @@ class FamilyTreeShortcodes
         add_shortcode('family_admin', array($this, 'family_admin'));
         add_shortcode('add_family_member', array($this, 'add_family_member'));
         add_shortcode('family_tree_view', array($this, 'family_tree_view'));
+        
+        // Clan shortcodes
+        add_shortcode('family_clans', array($this, 'family_clans'));
+        add_shortcode('add_family_clan', array($this, 'add_family_clan'));
+        add_shortcode('edit_family_clan', array($this, 'edit_family_clan'));
+    }
+
+    public function family_clans($atts)
+    {
+        if (!is_user_logged_in()) {
+            return $this->family_login($atts);
+        }
+
+        ob_start();
+        include FAMILY_TREE_PATH . 'templates/clans.php';
+        return ob_get_clean();
+    }
+
+    public function add_family_clan($atts)
+    {
+        if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
+            return '<div class="family-message error"><p>You do not have permission to add clans.</p></div>';
+        }
+
+        ob_start();
+        include FAMILY_TREE_PATH . 'templates/add-clan.php';
+        return ob_get_clean();
+    }
+
+    public function edit_family_clan($atts)
+    {
+        if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
+            return '<div class="family-message error"><p>You do not have permission to edit clans.</p></div>';
+        }
+
+        ob_start();
+        include FAMILY_TREE_PATH . 'templates/edit-clan.php';
+        return ob_get_clean();
     }
 
     public function family_dashboard($atts)
@@ -27,12 +64,13 @@ class FamilyTreeShortcodes
                     <span>Welcome, <?php echo esc_html(wp_get_current_user()->display_name); ?></span>
                     <a href="<?php echo wp_logout_url(home_url()); ?>" class="btn btn-outline">Logout</a>
                     <?php if (current_user_can('edit_family_members')): ?>
-                        <a href="/add-member" class="btn btn-primary">Add Family Member</a>
+                        <a href="<?php echo home_url('/add-member'); ?>" class="btn btn-primary">Add Family Member</a>
                     <?php endif; ?>
                     <?php if (current_user_can('manage_family')): ?>
-                        <a href="/family-admin" class="btn btn-secondary">Admin Panel</a>
+                        <a href="<?php echo home_url('/family-admin'); ?>" class="btn btn-secondary">Admin Panel</a>
                     <?php endif; ?>
-                    <a href="/family-tree" class="btn btn-info">Tree View</a>
+                    <a href="<?php echo home_url('/family-tree'); ?>" class="btn btn-info">Tree View</a>
+                    <a href="<?php echo home_url('/clans'); ?>" class="btn btn-info">Family Clans</a>
                 </div>
             </div>
 
@@ -87,7 +125,7 @@ class FamilyTreeShortcodes
                             <div class="no-members">
                                 <p>No family members added yet.</p>
                                 <?php if (current_user_can('edit_family_members')): ?>
-                                    <a href="/add-member" class="btn btn-primary">Add First Member</a>
+                                    <a href="<?php echo home_url('/add-member'); ?>" class="btn btn-primary">Add First Member</a>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
@@ -141,7 +179,7 @@ class FamilyTreeShortcodes
             <div class="admin-header">
                 <h1>Family Tree Administration</h1>
                 <div class="admin-actions">
-                    <a href="/family-dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+                    <a href="<?php echo home_url('/family-dashboard'); ?>" class="btn btn-secondary">← Back to Dashboard</a>
                     <a href="<?php echo wp_logout_url(home_url()); ?>" class="btn btn-outline">Logout</a>
                 </div>
             </div>
@@ -149,6 +187,7 @@ class FamilyTreeShortcodes
             <div class="admin-tabs">
                 <button class="tab-button active" data-tab="users">User Management</button>
                 <button class="tab-button" data-tab="members">Family Members</button>
+                <button class="tab-button" data-tab="clans">Family Clans</button>
                 <button class="tab-button" data-tab="settings">Settings</button>
             </div>
 
@@ -269,8 +308,45 @@ class FamilyTreeShortcodes
                     </div>
 
                     <div class="admin-actions">
-                        <a href="/add-member" class="btn btn-primary">Add New Member</a>
-                        <a href="/family-tree" class="btn btn-secondary">View Tree</a>
+                        <a href="<?php echo home_url('/add-member'); ?>" class="btn btn-primary">Add New Member</a>
+                        <a href="<?php echo home_url('/family-tree'); ?>" class="btn btn-secondary">View Tree</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="clans-tab">
+                <div class="tab-section">
+                    <h3>Family Clans Overview</h3>
+                    <?php
+                    $clans = FamilyTreeDatabase::get_clans();
+                    $clan_count = $clans ? count($clans) : 0;
+                    ?>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>Total Clans</h4>
+                            <div class="stat-number"><?php echo $clan_count; ?></div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Active Clans</h4>
+                            <div class="stat-number">
+                                <?php
+                                $active_clans = 0;
+                                if ($clans) {
+                                    foreach ($clans as $clan) {
+                                        if ($clan->members_count > 0) {
+                                            $active_clans++;
+                                        }
+                                    }
+                                }
+                                echo $active_clans;
+                                ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-actions">
+                        <a href="<?php echo home_url('/add-clan'); ?>" class="btn btn-primary">Add New Clan</a>
+                        <a href="<?php echo home_url('/clans'); ?>" class="btn btn-secondary">Manage Clans</a>
                     </div>
                 </div>
             </div>
@@ -345,7 +421,7 @@ class FamilyTreeShortcodes
         <div class="add-member-page">
             <div class="page-header">
                 <h1>Add Family Member</h1>
-                <a href="/family-dashboard" class="btn btn-back">← Back to Dashboard</a>
+                <a href="<?php echo home_url('/family-dashboard'); ?>" class="btn btn-back">← Back to Dashboard</a>
             </div>
 
             <form id="add-member-form" class="member-form">
@@ -430,7 +506,7 @@ class FamilyTreeShortcodes
 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Add Family Member</button>
-                    <a href="/family-dashboard" class="btn btn-secondary">Cancel</a>
+                    <a href="<?php echo home_url('/family-dashboard'); ?>" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
 
@@ -457,7 +533,7 @@ class FamilyTreeShortcodes
                             $('#form-message').html('<div class="message success">' + response.data + '</div>');
                             $('#add-member-form')[0].reset();
                             setTimeout(function () {
-                                window.location.href = '/family-dashboard';
+                                window.location.href = '<?php echo home_url('/family-dashboard'); ?>';
                             }, 2000);
                         } else {
                             $('#form-message').html('<div class="message error">' + response.data + '</div>');
@@ -482,7 +558,7 @@ class FamilyTreeShortcodes
             <div class="tree-header">
                 <h1>Family Tree</h1>
                 <div class="tree-controls">
-                    <a href="/family-dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+                    <a href="<?php echo home_url('/family-dashboard'); ?>" class="btn btn-secondary">← Back to Dashboard</a>
                     <button class="btn btn-outline" onclick="location.reload()">Refresh</button>
                 </div>
             </div>
@@ -529,9 +605,9 @@ class FamilyTreeShortcodes
                             <div class="tree-member-card">
                                 <div class="member-photo">
                                     ${member.photo ?
-                            '<img src="' + member.photo + '" alt="' + member.firstName + '">' :
-                            '<div class="photo-placeholder">' + member.firstName.charAt(0) + '</div>'
-                        }
+                                    '<img src="' + member.photo + '" alt="' + member.firstName + '">' :
+                                    '<div class="photo-placeholder">' + member.firstName.charAt(0) + '</div>'
+                                }
                                 </div>
                                 <div class="member-info">
                                     <h4>${member.firstName} ${member.lastName}</h4>
@@ -558,5 +634,4 @@ class FamilyTreeShortcodes
     }
 }
 
-new FamilyTreeShortcodes();
-?>
+new FamilyTreeShortcodes(); 

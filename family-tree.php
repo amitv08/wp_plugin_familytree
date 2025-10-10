@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Family Tree
  * Description: Complete family tree management system
- * Version: 1.0
- * Author: Your Name
+ * Version: 10102025
+ * Author: Amit Vengsarkar
  */
 
 if (!defined('ABSPATH')) {
@@ -15,7 +15,6 @@ define('FAMILY_TREE_PATH', plugin_dir_path(__FILE__));
 
 class FamilyTreePlugin
 {
-
     public function __construct()
     {
         register_activation_hook(__FILE__, array($this, 'activate'));
@@ -32,9 +31,17 @@ class FamilyTreePlugin
         add_action('wp_ajax_create_family_user', array($this, 'ajax_create_family_user'));
         add_action('wp_ajax_update_family_member', array($this, 'ajax_update_family_member'));
         add_action('wp_ajax_delete_family_member', array($this, 'ajax_delete_family_member'));
-        // Add these to the constructor in family-tree.php
         add_action('wp_ajax_update_user_role', array($this, 'ajax_update_user_role'));
         add_action('wp_ajax_delete_family_user', array($this, 'ajax_delete_family_user'));
+
+        // Clan AJAX handlers
+        add_action('wp_ajax_add_clan', array($this, 'ajax_add_clan'));
+        add_action('wp_ajax_update_clan', array($this, 'ajax_update_clan'));
+        add_action('wp_ajax_delete_clan', array($this, 'ajax_delete_clan'));
+        add_action('wp_ajax_add_clan_place', array($this, 'ajax_add_clan_place'));
+        add_action('wp_ajax_delete_clan_place', array($this, 'ajax_delete_clan_place'));
+        add_action('wp_ajax_add_clan_name', array($this, 'ajax_add_clan_name'));
+        add_action('wp_ajax_delete_clan_name', array($this, 'ajax_delete_clan_name'));
 
         // Handle custom routes
         add_action('template_redirect', array($this, 'handle_routes'));
@@ -51,14 +58,27 @@ class FamilyTreePlugin
 
     public function activate()
     {
-        FamilyTreeDatabase::setup_tables();
-        FamilyTreeRoles::setup_roles();
-        flush_rewrite_rules();
+        // Suppress output during activation
+        ob_start();
 
-        // Make admin a super admin
-        $admin = get_user_by('email', get_option('admin_email'));
-        if ($admin) {
-            $admin->add_role('family_super_admin');
+        try {
+            FamilyTreeDatabase::setup_tables();
+            FamilyTreeRoles::setup_roles();
+            flush_rewrite_rules();
+
+            // Make admin a super admin
+            $admin = get_user_by('email', get_option('admin_email'));
+            if ($admin) {
+                $admin->add_role('family_super_admin');
+            }
+
+            // Clear any output buffer
+            ob_end_clean();
+
+        } catch (Exception $e) {
+            // Clean output buffer on error too
+            ob_end_clean();
+            error_log('Family Tree Plugin activation error: ' . $e->getMessage());
         }
     }
 
@@ -126,13 +146,42 @@ class FamilyTreePlugin
             $this->load_template('tree-view.php');
             exit;
         }
-        // In the handle_routes method, add:
+
         if (strpos($request_uri, '/edit-member') !== false) {
             if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
                 wp_redirect('/family-login');
                 exit;
             }
             $this->load_template('edit-member.php');
+            exit;
+        }
+
+        // Clan routes
+
+        if (strpos($request_uri, '/clans') !== false) {
+            if (!is_user_logged_in()) {
+                wp_redirect('/family-login');
+                exit;
+            }
+            $this->load_template('clans.php');
+            exit;
+        }
+
+        if (strpos($request_uri, '/add-clan') !== false) {
+            if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
+                wp_redirect('/family-login');
+                exit;
+            }
+            $this->load_template('add-clan.php');
+            exit;
+        }
+
+        if (strpos($request_uri, '/edit-clan') !== false) {
+            if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
+                wp_redirect('/family-login');
+                exit;
+            }
+            $this->load_template('edit-clan.php');
             exit;
         }
     }
@@ -159,188 +208,81 @@ class FamilyTreePlugin
         ));
     }
 
-    // Add this to your FamilyTreePlugin class in family-tree.php
-
+    // Existing AJAX methods (keep all your existing methods here)
     public function ajax_add_family_member()
     {
-        check_ajax_referer('family_tree_nonce', 'nonce');
+        // Clear any previous output
+        ob_clean();
+
+        // Check nonce first
+        if (!check_ajax_referer('family_tree_nonce', 'nonce', false)) {
+            status_header(400);
+            wp_send_json_error('Security verification failed');
+            exit;
+        }
 
         if (!current_user_can('edit_family_members')) {
+            status_header(403);
             wp_send_json_error('Insufficient permissions');
+            exit;
         }
 
-        // Handle file upload
-        $photo_url = '';
-        if (!empty($_FILES['photo']['name'])) {
-            $upload = wp_handle_upload($_FILES['photo'], array('test_form' => false));
-            if (isset($upload['url'])) {
-                $photo_url = $upload['url'];
+        try {
+            // Handle file upload
+            $photo_url = '';
+            if (!empty($_FILES['photo']['name'])) {
+                $upload = wp_handle_upload($_FILES['photo'], array('test_form' => false));
+                if (isset($upload['url']) && !isset($upload['error'])) {
+                    $photo_url = $upload['url'];
+                } else {
+                    wp_send_json_error('File upload failed: ' . ($upload['error'] ?? 'Unknown error'));
+                    exit;
+                }
             }
+
+            // Validate required fields
+            if (empty($_POST['first_name']) || empty($_POST['last_name'])) {
+                wp_send_json_error('First name and last name are required');
+                exit;
+            }
+
+            $data = array(
+                'first_name' => sanitize_text_field($_POST['first_name']),
+                'last_name' => sanitize_text_field($_POST['last_name']),
+                'birth_date' => !empty($_POST['birth_date']) ? sanitize_text_field($_POST['birth_date']) : null,
+                'death_date' => !empty($_POST['death_date']) ? sanitize_text_field($_POST['death_date']) : null,
+                'gender' => !empty($_POST['gender']) ? sanitize_text_field($_POST['gender']) : 'other',
+                'photo_url' => $photo_url,
+                'biography' => !empty($_POST['biography']) ? sanitize_textarea_field($_POST['biography']) : '',
+                'parent1_id' => !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null
+            );
+
+            $result = FamilyTreeDatabase::add_member($data);
+
+            if ($result) {
+                wp_send_json_success('Member added successfully');
+            } else {
+                wp_send_json_error('Failed to add member to database');
+            }
+
+        } catch (Exception $e) {
+            status_header(500);
+            wp_send_json_error('Server error: ' . $e->getMessage());
         }
 
-        $data = array(
-            'first_name' => sanitize_text_field($_POST['first_name']),
-            'last_name' => sanitize_text_field($_POST['last_name']),
-            'birth_date' => sanitize_text_field($_POST['birth_date']),
-            'death_date' => sanitize_text_field($_POST['death_date']),
-            'gender' => sanitize_text_field($_POST['gender']),
-            'photo_url' => $photo_url,
-            'biography' => sanitize_textarea_field($_POST['biography']),
-            'parent1_id' => !empty($_POST['parent_id']) ? intval($_POST['parent_id']) : null
-        );
-
-        $result = FamilyTreeDatabase::add_member($data);
-
-        if ($result) {
-            wp_send_json_success('Member added successfully');
-        } else {
-            wp_send_json_error('Failed to add member');
-        }
+        exit; // Ensure no further output
     }
 
     public function ajax_get_tree_data()
     {
-        if (!is_user_logged_in()) {
-            wp_send_json_error('Authentication required');
-        }
-
-        $data = FamilyTreeDatabase::get_tree_data();
-        wp_send_json_success($data);
+        // ... your existing code ...
     }
 
-    public function ajax_debug_tree_data()
-    {
-        if (!is_user_logged_in()) {
-            wp_send_json_error('Authentication required');
-        }
+    // ... all your other existing AJAX methods ...
 
-        $data = FamilyTreeDatabase::get_tree_data();
-
-        // Send raw data for debugging
-        wp_send_json_success([
-            'data' => $data,
-            'count' => count($data),
-            'sample' => $data[0] ?? 'No data',
-            'debug' => 'Tree data debug response'
-        ]);
-    }
-
-    public function ajax_create_family_user()
-    {
-        check_ajax_referer('family_tree_nonce', 'nonce');
-
-        if (!current_user_can('manage_family_users')) {
-            wp_send_json_error('Insufficient permissions');
-        }
-
-        // Validate passwords
-        if ($_POST['password'] !== $_POST['confirm_password']) {
-            wp_send_json_error('Passwords do not match');
-        }
-
-        if (strlen($_POST['password']) < 6) {
-            wp_send_json_error('Password must be at least 6 characters long');
-        }
-
-        $user_data = array(
-            'username' => sanitize_user($_POST['username']),
-            'email' => sanitize_email($_POST['email']),
-            'password' => $_POST['password'], // Include password
-            'first_name' => sanitize_text_field($_POST['first_name']),
-            'last_name' => sanitize_text_field($_POST['last_name']),
-            'role' => sanitize_text_field($_POST['role'])
-        );
-
-        $result = FamilyTreeRoles::create_user($user_data);
-
-        if ($result['success']) {
-            wp_send_json_success($result['message']);
-        } else {
-            wp_send_json_error($result['message']);
-        }
-    }
-    // Add these methods to your FamilyTreePlugin class in family-tree.php
-
-    public function ajax_update_user_role()
-    {
-        check_ajax_referer('family_tree_nonce', 'nonce');
-
-        if (!current_user_can('manage_family')) {
-            wp_send_json_error('Insufficient permissions');
-        }
-
-        $user_id = intval($_POST['user_id']);
-        $new_role = sanitize_text_field($_POST['new_role']);
-
-        // Validate role
-        $valid_roles = ['family_admin', 'family_editor', 'family_viewer'];
-        if (!in_array($new_role, $valid_roles)) {
-            wp_send_json_error('Invalid role specified');
-        }
-
-        // Get the user
-        $user = get_user_by('id', $user_id);
-        if (!$user) {
-            wp_send_json_error('User not found');
-        }
-
-        // Update user role
-        $user->set_role($new_role);
-
-        wp_send_json_success('User role updated successfully');
-    }
-
-    public function ajax_delete_family_user()
-    {
-        check_ajax_referer('family_tree_nonce', 'nonce');
-
-        if (!current_user_can('manage_family')) {
-            wp_send_json_error('Insufficient permissions');
-        }
-
-        $user_id = intval($_POST['user_id']);
-        $current_user_id = get_current_user_id();
-
-        // Prevent users from deleting themselves
-        if ($user_id == $current_user_id) {
-            wp_send_json_error('You cannot delete your own account');
-        }
-
-        // Check if user exists and has family role
-        $user = get_user_by('id', $user_id);
-        if (!$user) {
-            wp_send_json_error('User not found');
-        }
-
-        $user_roles = $user->roles;
-        $is_family_user = false;
-        foreach ($user_roles as $role) {
-            if (strpos($role, 'family_') === 0) {
-                $is_family_user = true;
-                break;
-            }
-        }
-
-        if (!$is_family_user) {
-            wp_send_json_error('User is not a family user');
-        }
-
-        // Delete the user
-        if (!function_exists('wp_delete_user')) {
-            require_once(ABSPATH . 'wp-admin/includes/user.php');
-        }
-
-        $result = wp_delete_user($user_id);
-
-        if ($result) {
-            wp_send_json_success('User deleted successfully');
-        } else {
-            wp_send_json_error('Failed to delete user');
-        }
-    }
-    // Add these to your FamilyTreePlugin class in family-tree.php
-
-    public function ajax_update_family_member()
+    // ===== CLAN AJAX METHODS =====
+/*
+    public function ajax_add_clan()
     {
         check_ajax_referer('family_tree_nonce', 'nonce');
 
@@ -348,37 +290,128 @@ class FamilyTreePlugin
             wp_send_json_error('Insufficient permissions');
         }
 
-        $member_id = intval($_POST['member_id']);
-
-        // Validate required fields
-        if (empty($_POST['first_name']) || empty($_POST['last_name'])) {
-            wp_send_json_error('First name and last name are required');
-        }
-
         $data = array(
-            'first_name' => sanitize_text_field($_POST['first_name']),
-            'last_name' => sanitize_text_field($_POST['last_name']),
-            'birth_date' => sanitize_text_field($_POST['birth_date']),
-            'death_date' => sanitize_text_field($_POST['death_date']),
-            'gender' => sanitize_text_field($_POST['gender']),
-            'photo_url' => esc_url_raw($_POST['photo_url']),
-            'biography' => sanitize_textarea_field($_POST['biography']),
-            'parent1_id' => !empty($_POST['parent1_id']) ? intval($_POST['parent1_id']) : null,
-            'parent2_id' => !empty($_POST['parent2_id']) ? intval($_POST['parent2_id']) : null
+            'clan_name' => sanitize_text_field($_POST['clan_name']),
+            'clan_description' => sanitize_textarea_field($_POST['clan_description'])
         );
 
-        error_log('Updating member ' . $member_id . ' with data: ' . print_r($data, true));
-
-        $result = FamilyTreeDatabase::update_member($member_id, $data);
+        $result = FamilyTreeDatabase::add_clan($data);
 
         if ($result) {
-            wp_send_json_success('Member updated successfully');
+            wp_send_json_success('Clan added successfully');
         } else {
-            wp_send_json_error('Failed to update member. Please try again.');
+            wp_send_json_error('Failed to add clan');
+        }
+    }
+*/
+
+    public function ajax_add_clan()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('edit_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $clan_name = sanitize_text_field($_POST['clan_name']);
+        $clan_description = sanitize_textarea_field($_POST['clan_description']);
+
+        if (empty($clan_name)) {
+            wp_send_json_error('Clan name is required');
+        }
+
+        // First, create the clan
+        $clan_data = array(
+            'clan_name' => $clan_name,
+            'clan_description' => $clan_description
+        );
+
+        $clan_id = FamilyTreeDatabase::add_clan($clan_data);
+
+        if (!$clan_id) {
+            wp_send_json_error('Failed to create clan');
+        }
+
+        $success_count = 0;
+        $error_count = 0;
+
+        // Add places if provided
+        if (!empty($_POST['places'])) {
+            $places = json_decode(stripslashes($_POST['places']), true);
+
+            if (is_array($places)) {
+                foreach ($places as $place) {
+                    $place_data = array(
+                        'clan_id' => $clan_id,
+                        'place_name' => sanitize_text_field($place['place_name']),
+                        'location' => sanitize_text_field($place['location']),
+                        'place_description' => sanitize_textarea_field($place['place_description'])
+                    );
+
+                    if (FamilyTreeDatabase::add_clan_place($place_data)) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+            }
+        }
+
+        // Add names if provided
+        if (!empty($_POST['names'])) {
+            $names = json_decode(stripslashes($_POST['names']), true);
+
+            if (is_array($names)) {
+                foreach ($names as $name) {
+                    $name_data = array(
+                        'clan_id' => $clan_id,
+                        'last_name' => sanitize_text_field($name['last_name']),
+                        'description' => sanitize_textarea_field($name['description'])
+                    );
+
+                    if (FamilyTreeDatabase::add_clan_name($name_data)) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+            }
+        }
+
+        $message = 'Clan created successfully';
+        if ($success_count > 0) {
+            $message .= " with {$success_count} additional items";
+        }
+        if ($error_count > 0) {
+            $message .= ". {$error_count} items failed to add";
+        }
+
+        wp_send_json_success($message);
+    }
+    public function ajax_update_clan()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('edit_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $clan_id = intval($_POST['clan_id']);
+        $data = array(
+            'clan_name' => sanitize_text_field($_POST['clan_name']),
+            'clan_description' => sanitize_textarea_field($_POST['clan_description'])
+        );
+
+        $result = FamilyTreeDatabase::update_clan($clan_id, $data);
+
+        if ($result) {
+            wp_send_json_success('Clan updated successfully');
+        } else {
+            wp_send_json_error('Failed to update clan');
         }
     }
 
-    public function ajax_delete_family_member()
+    public function ajax_delete_clan()
     {
         check_ajax_referer('family_tree_nonce', 'nonce');
 
@@ -386,16 +419,159 @@ class FamilyTreePlugin
             wp_send_json_error('Insufficient permissions');
         }
 
-        $member_id = intval($_POST['member_id']);
-
-        error_log('Deleting member: ' . $member_id);
-
-        $result = FamilyTreeDatabase::delete_member($member_id);
+        $clan_id = intval($_POST['clan_id']);
+        $result = FamilyTreeDatabase::delete_clan($clan_id);
 
         if ($result) {
-            wp_send_json_success('Member deleted successfully');
+            wp_send_json_success('Clan deleted successfully');
         } else {
-            wp_send_json_error('Failed to delete member. Please try again.');
+            wp_send_json_error('Failed to delete clan');
+        }
+    }
+
+    public function ajax_add_clan_place()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('edit_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $data = array(
+            'clan_id' => intval($_POST['clan_id']),
+            'place_name' => sanitize_text_field($_POST['place_name']),
+            'place_description' => sanitize_textarea_field($_POST['place_description']),
+            'location' => sanitize_text_field($_POST['location'])
+        );
+
+        $result = FamilyTreeDatabase::add_clan_place($data);
+
+        if ($result) {
+            wp_send_json_success('Clan place added successfully');
+        } else {
+            wp_send_json_error('Failed to add clan place');
+        }
+    }
+
+    public function ajax_delete_clan_place()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('delete_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $place_id = intval($_POST['place_id']);
+        $result = FamilyTreeDatabase::delete_clan_place($place_id);
+
+        if ($result) {
+            wp_send_json_success('Clan place deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete clan place');
+        }
+    }
+
+    public function ajax_add_clan_name()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('edit_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $data = array(
+            'clan_id' => intval($_POST['clan_id']),
+            'last_name' => sanitize_text_field($_POST['last_name']),
+            'description' => sanitize_textarea_field($_POST['description'])
+        );
+
+        $result = FamilyTreeDatabase::add_clan_name($data);
+
+        if ($result) {
+            wp_send_json_success('Clan name added successfully');
+        } else {
+            wp_send_json_error('Failed to add clan name');
+        }
+    }
+
+    public function ajax_delete_clan_name()
+    {
+        check_ajax_referer('family_tree_nonce', 'nonce');
+
+        if (!current_user_can('delete_family_members')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $name_id = intval($_POST['name_id']);
+        $result = FamilyTreeDatabase::delete_clan_name($name_id);
+
+        if ($result) {
+            wp_send_json_success('Clan name deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete clan name');
+        }
+    }
+
+    public function ajax_update_family_member()
+    {
+        // Check nonce first
+        if (!check_ajax_referer('family_tree_nonce', 'nonce', false)) {
+            error_log('Family Tree: Nonce verification failed');
+            wp_send_json_error('Security verification failed');
+        }
+
+        if (!current_user_can('edit_family_members')) {
+            error_log('Family Tree: User lacks edit_family_members capability');
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        // Validate required fields
+        if (empty($_POST['member_id'])) {
+            wp_send_json_error('Member ID is required');
+        }
+
+        if (empty($_POST['first_name']) || empty($_POST['last_name'])) {
+            wp_send_json_error('First name and last name are required');
+        }
+
+        $member_id = intval($_POST['member_id']);
+
+        // Prepare data with proper validation
+        $data = array(
+            'first_name' => sanitize_text_field($_POST['first_name']),
+            'last_name' => sanitize_text_field($_POST['last_name']),
+            'birth_date' => !empty($_POST['birth_date']) ? sanitize_text_field($_POST['birth_date']) : null,
+            'death_date' => !empty($_POST['death_date']) ? sanitize_text_field($_POST['death_date']) : null,
+            'gender' => !empty($_POST['gender']) ? sanitize_text_field($_POST['gender']) : 'other',
+            'biography' => !empty($_POST['biography']) ? sanitize_textarea_field($_POST['biography']) : '',
+            'parent1_id' => !empty($_POST['parent1_id']) ? intval($_POST['parent1_id']) : null,
+            'parent2_id' => !empty($_POST['parent2_id']) ? intval($_POST['parent2_id']) : null
+        );
+
+        // Handle photo_url separately since it might be empty
+        if (!empty($_POST['photo_url'])) {
+            $data['photo_url'] = esc_url_raw($_POST['photo_url']);
+        } else {
+            $data['photo_url'] = '';
+        }
+
+        error_log('Updating member ' . $member_id . ' with data: ' . print_r($data, true));
+
+        try {
+            $result = FamilyTreeDatabase::update_member($member_id, $data);
+
+            if ($result !== false) {
+                error_log('Member update successful for ID: ' . $member_id);
+                wp_send_json_success('Member updated successfully');
+            } else {
+                error_log('Member update failed for ID: ' . $member_id);
+                global $wpdb;
+                error_log('Last database error: ' . $wpdb->last_error);
+                wp_send_json_error('Failed to update member. Database error occurred.');
+            }
+        } catch (Exception $e) {
+            error_log('Exception during member update: ' . $e->getMessage());
+            wp_send_json_error('Server error: ' . $e->getMessage());
         }
     }
 }

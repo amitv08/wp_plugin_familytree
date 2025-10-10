@@ -30,7 +30,7 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
             background: white;
             border-radius: 10px;
             padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .page-header {
@@ -125,7 +125,9 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
             font-size: 14px;
         }
 
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             padding: 12px;
             border: 2px solid #e0e0e0;
             border-radius: 5px;
@@ -133,7 +135,9 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
             transition: border-color 0.3s ease;
         }
 
-        input:focus, select:focus, textarea:focus {
+        input:focus,
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: #007cba;
         }
@@ -195,11 +199,11 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
             .form-row {
                 grid-template-columns: 1fr;
             }
-            
+
             .form-actions {
                 flex-direction: column;
             }
-            
+
             .page-header {
                 flex-direction: column;
                 gap: 15px;
@@ -269,7 +273,8 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
                         }
                         ?>
                     </select>
-                    <small style="color: #666; margin-top: 5px;">Select a parent to establish family relationships</small>
+                    <small style="color: #666; margin-top: 5px;">Select a parent to establish family
+                        relationships</small>
                 </div>
             </div>
 
@@ -289,7 +294,8 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
                 <h3>Additional Information</h3>
                 <div class="form-group full-width">
                     <label for="biography">Biography</label>
-                    <textarea id="biography" name="biography" rows="4" placeholder="Tell us about this family member..."></textarea>
+                    <textarea id="biography" name="biography" rows="4"
+                        placeholder="Tell us about this family member..."></textarea>
                 </div>
             </div>
 
@@ -303,61 +309,114 @@ if (!is_user_logged_in() || !current_user_can('edit_family_members')) {
     </div>
 
     <script>
-        jQuery(document).ready(function ($) {
-            // Photo preview functionality
-            $('#photo').on('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        $('#preview-image').attr('src', e.target.result);
-                        $('#photo-preview').show();
+    jQuery(document).ready(function ($) {
+        // Photo preview functionality
+        $('#photo').on('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (2MB limit)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('File size must be less than 2MB');
+                    $(this).val('');
+                    return;
+                }
+
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Please select a valid image file (JPG, PNG, GIF)');
+                    $(this).val('');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#preview-image').attr('src', e.target.result);
+                    $('#photo-preview').show();
+                }
+                reader.readAsDataURL(file);
+            } else {
+                $('#photo-preview').hide();
+            }
+        });
+
+        $('#add-member-form').on('submit', function (e) {
+            e.preventDefault();
+
+            // Clear previous messages
+            $('#form-message').html('');
+
+            var formData = new FormData(this);
+            formData.append('action', 'add_family_member');
+            formData.append('nonce', family_tree.nonce);
+
+            // Validate required fields
+            if (!$('#first_name').val().trim() || !$('#last_name').val().trim()) {
+                $('#form-message').html('<div class="message error">First name and last name are required</div>');
+                return;
+            }
+
+            // Show loading state
+            var submitBtn = $(this).find('button[type="submit"]');
+            var originalText = submitBtn.text();
+            submitBtn.text('Adding...').prop('disabled', true);
+
+            console.log('Sending AJAX request...');
+
+            $.ajax({
+                url: family_tree.ajax_url,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function (response) {
+                    console.log('AJAX Success:', response);
+                    
+                    if (response.success) {
+                        $('#form-message').html('<div class="message success">' + response.data + '</div>');
+                        $('#add-member-form')[0].reset();
+                        $('#photo-preview').hide();
+                        setTimeout(function () {
+                            window.location.href = '/family-dashboard';
+                        }, 2000);
+                    } else {
+                        $('#form-message').html('<div class="message error">' + response.data + '</div>');
                     }
-                    reader.readAsDataURL(file);
-                } else {
-                    $('#photo-preview').hide();
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX Error:', xhr.responseText);
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+
+                    let errorMessage = 'Network error: ' + error;
+
+                    // Try to parse HTML response for PHP errors
+                    if (xhr.responseText.includes('Fatal error') || xhr.responseText.includes('Parse error')) {
+                        errorMessage = 'Server error occurred. Please check the error log.';
+                    } else if (xhr.status === 500) {
+                        errorMessage = 'Internal server error. Please try again.';
+                    } else if (xhr.responseText) {
+                        // Try to parse JSON error
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.data) {
+                                errorMessage = errorResponse.data;
+                            }
+                        } catch (e) {
+                            // Not JSON, use raw response
+                            errorMessage = 'Server response: ' + xhr.responseText.substring(0, 100);
+                        }
+                    }
+
+                    $('#form-message').html('<div class="message error">' + errorMessage + '</div>');
+                },
+                complete: function () {
+                    submitBtn.text(originalText).prop('disabled', false);
                 }
             });
-
-            $('#add-member-form').on('submit', function (e) {
-                e.preventDefault();
-
-                var formData = new FormData(this);
-                formData.append('action', 'add_family_member');
-                formData.append('nonce', family_tree.nonce);
-
-                // Show loading state
-                var submitBtn = $(this).find('button[type="submit"]');
-                var originalText = submitBtn.text();
-                submitBtn.text('Adding...').prop('disabled', true);
-
-                $.ajax({
-                    url: family_tree.ajax_url,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function (response) {
-                        if (response.success) {
-                            $('#form-message').html('<div class="message success">' + response.data + '</div>');
-                            $('#add-member-form')[0].reset();
-                            $('#photo-preview').hide();
-                            setTimeout(function () {
-                                window.location.href = '/family-dashboard';
-                            }, 2000);
-                        } else {
-                            $('#form-message').html('<div class="message error">' + response.data + '</div>');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        $('#form-message').html('<div class="message error">Error: ' + error + '</div>');
-                    },
-                    complete: function() {
-                        submitBtn.text(originalText).prop('disabled', false);
-                    }
-                });
-            });
         });
+    });
     </script>
 
     <?php wp_footer(); ?>

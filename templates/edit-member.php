@@ -317,36 +317,65 @@ function is_selected($value, $compare)
                 var originalText = submitBtn.text();
                 submitBtn.text('Updating...').prop('disabled', true);
 
-                var formData = $(this).serializeArray();
-                var data = {};
+                // Collect form data
+                var formData = {
+                    member_id: $('input[name="member_id"]').val(),
+                    first_name: $('#first_name').val(),
+                    last_name: $('#last_name').val(),
+                    birth_date: $('#birth_date').val(),
+                    death_date: $('#death_date').val(),
+                    gender: $('#gender').val(),
+                    photo_url: $('#photo_url').val(),
+                    biography: $('#biography').val(),
+                    parent1_id: $('#parent1_id').val(),
+                    parent2_id: $('#parent2_id').val(),
+                    action: 'update_family_member',
+                    nonce: family_tree.nonce
+                };
 
-                formData.forEach(function (field) {
-                    data[field.name] = field.value;
-                });
+                console.log('Sending data:', formData); // Debug log
 
-                data.action = 'update_family_member';
-                data.nonce = family_tree.nonce;
+                $.ajax({
+                    url: family_tree.ajax_url,
+                    type: 'POST',
+                    data: formData,
+                    dataType: 'json',
+                    success: function (response) {
+                        console.log('Response received:', response); // Debug log
 
-                console.log('Sending data:', data); // Debug log
+                        // Restore button state
+                        submitBtn.text(originalText).prop('disabled', false);
 
-                $.post(family_tree.ajax_url, data, function (response) {
-                    console.log('Response received:', response); // Debug log
+                        if (response.success) {
+                            $('#form-message').html('<div class="message success">' + response.data + '</div>');
+                            setTimeout(function () {
+                                window.location.href = '/family-dashboard';
+                            }, 2000);
+                        } else {
+                            $('#form-message').html('<div class="message error">' + response.data + '</div>');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX error:', error); // Debug log
+                        console.error('Status:', status);
+                        console.error('Response:', xhr.responseText);
 
-                    // Restore button state
-                    submitBtn.text(originalText).prop('disabled', false);
+                        submitBtn.text(originalText).prop('disabled', false);
 
-                    if (response.success) {
-                        $('#form-message').html('<div class="message success">' + response.data + '</div>');
-                        setTimeout(function () {
-                            window.location.href = '/family-dashboard';
-                        }, 2000);
-                    } else {
-                        $('#form-message').html('<div class="message error">' + response.data + '</div>');
+                        var errorMessage = 'Network error: ' + error;
+                        if (xhr.responseText) {
+                            try {
+                                var response = JSON.parse(xhr.responseText);
+                                if (response.data) {
+                                    errorMessage = response.data;
+                                }
+                            } catch (e) {
+                                errorMessage = 'Server error: ' + xhr.responseText;
+                            }
+                        }
+
+                        $('#form-message').html('<div class="message error">' + errorMessage + '</div>');
                     }
-                }).fail(function (xhr, status, error) {
-                    console.error('AJAX error:', error); // Debug log
-                    submitBtn.text(originalText).prop('disabled', false);
-                    $('#form-message').html('<div class="message error">Network error: ' + error + '</div>');
                 });
             });
         });
@@ -366,6 +395,8 @@ function is_selected($value, $compare)
                     } else {
                         alert('Error: ' + response.data);
                     }
+                }).fail(function (xhr, status, error) {
+                    alert('Network error: ' + error);
                 });
             }
         }
